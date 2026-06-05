@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">一笔</string>
+    <string name="nav_home">首页</string>
+    <string name="nav_stats">统计</string>
+    <string name="nav_category">分类</string>
+</resources>
