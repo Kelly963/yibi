@@ -43,6 +43,15 @@ object UpdateChecker {
         data class Error(val message: String) : UpdateResult()
     }
 
+    data class ReleaseInfo(
+        val tagName: String,
+        val name: String,
+        val body: String,
+        val publishedAt: String,
+        val htmlUrl: String,
+        val prerelease: Boolean
+    )
+
     /**
      * 检查更新（协程版本）
      */
@@ -75,7 +84,7 @@ object UpdateChecker {
 
                     val release = JSONObject(jsonText)
                     val tagName = release.optString("tag_name", "")
-                    val body = release.optString("body", "").take(200)
+                    val body = release.optString("body", "")
                     val prerelease = release.optBoolean("prerelease", false)
 
                     if (tagName.isEmpty()) {
@@ -118,6 +127,55 @@ object UpdateChecker {
     }
 
     /**
+     * 获取所有 Release 列表
+     */
+    suspend fun fetchAllReleases(): List<ReleaseInfo> {
+        return withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val url = "https://api.github.com/repos/Kelly963/yibi/releases"
+                    val connection = URL(url).openConnection() as HttpURLConnection
+                    connection.apply {
+                        requestMethod = "GET"
+                        setRequestProperty("Accept", "application/vnd.github+json")
+                        setRequestProperty("User-Agent", "Yibi-UpdateChecker")
+                        connectTimeout = 8000
+                        readTimeout = 8000
+                    }
+
+                    if (connection.responseCode != 200) {
+                        return@withContext emptyList()
+                    }
+
+                    val jsonText = BufferedReader(InputStreamReader(connection.inputStream)).use {
+                        it.readText()
+                    }
+                    connection.disconnect()
+
+                    val jsonArray = org.json.JSONArray(jsonText)
+                    val releases = mutableListOf<ReleaseInfo>()
+                    for (i in 0 until jsonArray.length()) {
+                        val release = jsonArray.getJSONObject(i)
+                        releases.add(
+                            ReleaseInfo(
+                                tagName = release.optString("tag_name", ""),
+                                name = release.optString("name", ""),
+                                body = release.optString("body", ""),
+                                publishedAt = release.optString("published_at", ""),
+                                htmlUrl = release.optString("html_url", ""),
+                                prerelease = release.optBoolean("prerelease", false)
+                            )
+                        )
+                    }
+                    releases.filter { !it.prerelease }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+        } ?: emptyList()
+    }
+
+    /**
      * 检查并显示更新对话框（完整封装，在 MainActivity.onCreate 中调用）
      */
     fun checkAndShowUpdateDialog(context: Context) {
@@ -139,17 +197,11 @@ object UpdateChecker {
      * 显示更新对话框
      */
     private fun showUpdateDialog(context: Context, update: UpdateResult.UpdateAvailable) {
-        val message = buildString {
-            appendLine("GitHub 发布了新版本 ${update.tagName}")
-            if (update.body.isNotEmpty()) {
-                appendLine()
-                append(update.body)
-            }
-        }
+        val title = "v${update.tagName.replaceFirst("v", "")} 更新内容"
 
         val builder = android.app.AlertDialog.Builder(context)
-            .setTitle("发现新版本")
-            .setMessage(message.trim())
+            .setTitle(title)
+            .setMessage(update.body.ifEmpty { "暂无更新说明" })
             .setPositiveButton("立即更新") { _, _ ->
                 openDownloadPage(context, update.downloadUrl)
             }

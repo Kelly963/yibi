@@ -20,11 +20,13 @@ import com.yibi.data.local.AppDatabase
 import com.yibi.data.repository.CategoryRepository
 import com.yibi.data.repository.TransactionRepository
 import com.yibi.domain.model.Transaction
+import com.yibi.ui.screen.about.AboutScreen
 import com.yibi.ui.screen.category.CategoryScreen
 import com.yibi.ui.screen.home.HomeScreen
 import com.yibi.ui.screen.record.RecordScreen
 import com.yibi.ui.screen.stats.StatsScreen
 import com.yibi.ui.theme.YibiTheme
+import com.yibi.ui.viewmodel.AboutViewModel
 import com.yibi.ui.viewmodel.CategoryViewModel
 import com.yibi.ui.viewmodel.HomeViewModel
 import com.yibi.ui.viewmodel.RecordViewModel
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
         val recordViewModel = RecordViewModel(transactionRepository, categoryRepository)
         val categoryViewModel = CategoryViewModel(categoryRepository)
         val statsViewModel = StatsViewModel(transactionRepository, categoryRepository)
+        val aboutViewModel = AboutViewModel()
 
         // 启动时检查更新
         UpdateChecker.checkAndShowUpdateDialog(this)
@@ -137,6 +140,16 @@ class MainActivity : ComponentActivity() {
                             }
                             RecordScreen(
                                 viewModel = recordViewModel,
+                                onNavigateBack = {
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+
+                        // 关于页面
+                        composable("about") {
+                            AboutScreen(
+                                viewModel = aboutViewModel,
                                 onNavigateBack = {
                                     navController.popBackStack()
                                 }
